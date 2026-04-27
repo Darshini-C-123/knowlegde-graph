@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Graph — Knowledge Graph Swarm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"
+    ></script>
+  </head>
+  <body data-page="graph">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">KG Swarm</div>
+        <nav class="nav-links">
+          <a href="{{ url_for('dashboard') }}">Dashboard</a>
+          <a class="active" href="{{ url_for('graph_page') }}">Graph</a>
+          <a href="{{ url_for('logs_page') }}">Logs</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+        <div class="sidebar-footer">{{ username }}</div>
+      </aside>
+      <main class="main-area">
+        <div class="toggle-row" style="justify-content: space-between; align-items: flex-end">
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap">
+            <label class="toggle">
+              <input type="checkbox" id="toggle-agents" checked />
+              <span>With agents (full pipeline)</span>
+            </label>
+            <div class="graph-controls">
+              <input
+                type="text"
+                id="graph-search"
+                placeholder="Search node by name…"
+                class="graph-search-input"
+              />
+              <button type="button" class="btn btn-ghost" id="btn-graph-search" style="padding: 0.4rem 0.9rem">
+                Search
+              </button>
+              <button type="button" class="btn btn-ghost" id="btn-export-graph" style="padding: 0.4rem 0.9rem">
+                Download Graph JSON
+              </button>
+            </div>
+          </div>
+          <div class="graph-legend">
+            <span class="legend-item">
+              <span class="legend-dot person"></span>Person
+            </span>
+            <span class="legend-item">
+              <span class="legend-dot org"></span>Organization
+            </span>
+            <span class="legend-item">
+              <span class="legend-dot loc"></span>Location
+            </span>
+            <span class="legend-item">
+              <span class="legend-dot event"></span>Event
+            </span>
+          </div>
+        </div>
+
+        <div class="graph-layout">
+          <div id="graph-network" class="graph-wrap"></div>
+          <aside class="graph-sidebar">
+            <h3>Filters</h3>
+            <div class="filter-list">
+              <label class="filter-item">
+                <input type="checkbox" id="filter-person" checked />
+                <span>Persons</span>
+              </label>
+              <label class="filter-item">
+                <input type="checkbox" id="filter-org" checked />
+                <span>Organizations</span>
+              </label>
+              <label class="filter-item">
+                <input type="checkbox" id="filter-loc" checked />
+                <span>Locations</span>
+              </label>
+              <label class="filter-item">
+                <input type="checkbox" id="filter-event" checked />
+                <span>Events</span>
+              </label>
+            </div>
+            <div id="graph-node-info" class="graph-node-info">
+              <div class="title">Node details</div>
+              <div class="body">
+                <div class="line muted">Click a node to inspect.</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>

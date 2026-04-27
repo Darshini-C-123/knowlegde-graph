@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logs — Knowledge Graph Swarm</title>
+    <meta name="description" content="Agent invocation logs with timestamps, Run IDs, and structured message traces." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  </head>
+  <body data-page="logs">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">KG Swarm</div>
+        <nav class="nav-links">
+          <a href="{{ url_for('dashboard') }}">Dashboard</a>
+          <a href="{{ url_for('graph_page') }}">Graph</a>
+          <a class="active" href="{{ url_for('logs_page') }}">Logs</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+        <div class="sidebar-footer">{{ username }}</div>
+      </aside>
+      <main class="main-area">
+        <div class="logs-header-row">
+          <div>
+            <h2 style="margin: 0; font-weight: 600">Agent &amp; State Logs</h2>
+            <p style="color: var(--muted); margin: 0.25rem 0 0">
+              Observability trace with timestamps, agent I/O, and state transitions.
+            </p>
+          </div>
+          <div class="logs-run-badge" id="logs-run-badge">—</div>
+        </div>
+
+        <!-- Structured message trace -->
+        <div class="logs-messages-panel" id="logs-messages-panel">
+          <div class="panel-header"><span class="panel-icon">📋</span> Structured Agent Messages</div>
+          <div class="logs-messages-list" id="logs-messages-list">
+            <div class="empty-hint">No messages yet</div>
+          </div>
+        </div>
+
+        <!-- Raw terminal log -->
+        <div id="logs-terminal" class="logs-terminal"></div>
+
+        <!-- Run History -->
+        <div class="replay-card" id="logs-replay-card">
+          <div class="panel-header"><span class="panel-icon">🔁</span> Run History (click to replay)</div>
+          <div class="replay-list" id="logs-replay-list">
+            <div class="empty-hint">No previous runs</div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>

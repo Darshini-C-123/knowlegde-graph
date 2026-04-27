@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — Knowledge Graph Swarm</title>
+    <meta name="description" content="Multi-agent knowledge graph builder with real-time visualization, state machine, and agent observability." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"
+    ></script>
+  </head>
+  <body data-page="dashboard">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">KG Swarm</div>
+        <nav class="nav-links">
+          <a class="active" href="{{ url_for('dashboard') }}">Dashboard</a>
+          <a href="{{ url_for('graph_page') }}">Graph</a>
+          <a href="{{ url_for('logs_page') }}">Logs</a>
+          <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+        <div class="sidebar-footer">Signed in as <strong>{{ username }}</strong></div>
+      </aside>
+      <main class="main-area">
+
+        <!-- ── Run Controls ── -->
+        <div class="run-controls-bar" id="run-controls-bar">
+          <div class="run-controls-left">
+            <button type="button" class="btn btn-run" id="btn-start" title="Start Pipeline">
+              <span class="ctrl-icon">▶</span> Start
+            </button>
+            <button type="button" class="btn btn-stop" id="btn-stop" disabled title="Stop">
+              <span class="ctrl-icon">■</span> Stop
+            </button>
+            <button type="button" class="btn btn-reset" id="btn-reset" title="Reset Session">
+              <span class="ctrl-icon">↺</span> Reset
+            </button>
+            <div class="seed-dropdown">
+              <button type="button" class="btn btn-seed" id="btn-seed" title="Load Seed Text">
+                <span class="ctrl-icon">⚡</span> Seed
+              </button>
+              <div class="seed-menu" id="seed-menu"></div>
+            </div>
+          </div>
+          <div class="run-controls-right">
+            <span class="run-id-badge" id="run-id-badge">No run yet</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-agents" checked />
+              <span>With agents</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- ── Metrics Dashboard ── -->
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="label">Nodes</div>
+            <div class="value" id="m-Nodes">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="label">Edges</div>
+            <div class="value" id="m-Edges">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="label">Accuracy</div>
+            <div class="value" id="m-Accuracy">—</div>
+          </div>
+          <div class="metric-card">
+            <div class="label">Duplicates</div>
+            <div class="value" id="m-Duplicates">—</div>
+          </div>
+          <div class="metric-card accent">
+            <div class="label">Density</div>
+            <div class="value" id="m-Density">—</div>
+          </div>
+          <div class="metric-card accent">
+            <div class="label">Avg Degree</div>
+            <div class="value" id="m-AvgDegree">—</div>
+          </div>
+        </div>
+
+        
+        <!-- ── Three-panel layout: Agent | State | Chat ── -->
+        <div class="tri-panel">
+
+          <!-- Agent Panel -->
+          <div class="panel agent-panel" id="agent-panel">
+            <div class="panel-header">
+              <span class="panel-icon">🤖</span> Agent Panel
+            </div>
+            <div class="agent-list" id="agent-list">
+              <div class="agent-card" data-agent="Extractor" id="agent-Extractor">
+                <span class="agent-indicator idle"></span>
+                <div class="agent-info">
+                  <div class="agent-name">Extractor</div>
+                  <div class="agent-role">NLP entity & relation extraction</div>
+                </div>
+                <span class="agent-status-text">Idle</span>
+              </div>
+              <div class="agent-card" data-agent="Validator" id="agent-Validator">
+                <span class="agent-indicator idle"></span>
+                <div class="agent-info">
+                  <div class="agent-name">Validator</div>
+                  <div class="agent-role">Filter invalid entities & rels</div>
+                </div>
+                <span class="agent-status-text">Idle</span>
+              </div>
+              <div class="agent-card" data-agent="Deduplicator" id="agent-Deduplicator">
+                <span class="agent-indicator idle"></span>
+                <div class="agent-info">
+                  <div class="agent-name">Deduplicator</div>
+                  <div class="agent-role">Normalize, merge & dedupe</div>
+                </div>
+                <span class="agent-status-text">Idle</span>
+              </div>
+              <div class="agent-card" data-agent="Curator" id="agent-Curator">
+                <span class="agent-indicator idle"></span>
+                <div class="agent-info">
+                  <div class="agent-name">Curator</div>
+                  <div class="agent-role">Build structured graph JSON</div>
+                </div>
+                <span class="agent-status-text">Idle</span>
+              </div>
+              <div class="agent-card" data-agent="Evaluator" id="agent-Evaluator">
+                <span class="agent-indicator idle"></span>
+                <div class="agent-info">
+                  <div class="agent-name">Evaluator</div>
+                  <div class="agent-role">Graph quality metrics</div>
+                </div>
+                <span class="agent-status-text">Idle</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- State Panel -->
+          <div class="panel state-panel" id="state-panel">
+            <div class="panel-header">
+              <span class="panel-icon">⚙️</span> State Machine
+            </div>
+            <div class="state-steps" id="state-steps">
+              <span class="state-pill" data-state="INIT">INIT</span>
+              <span class="state-arrow">→</span>
+              <span class="state-pill" data-state="EXTRACTING">EXTRACTING</span>
+              <span class="state-arrow">→</span>
+              <span class="state-pill" data-state="VALIDATING">VALIDATING</span>
+              <span class="state-arrow">→</span>
+              <span class="state-pill" data-state="DEDUPLICATING">DEDUPLICATING</span>
+              <span class="state-arrow">→</span>
+              <span class="state-pill" data-state="CURATING">CURATING</span>
+              <span class="state-arrow">→</span>
+              <span class="state-pill" data-state="EVALUATING">EVALUATING</span>
+              <span class="state-arrow">→</span>
+              <span class="state-pill" data-state="COMPLETED">COMPLETED</span>
+            </div>
+            <div class="transition-history" id="transition-history">
+              <div class="panel-sub-header">Transition History</div>
+              <div class="transition-list" id="transition-list">
+                <div class="empty-hint">No transitions yet</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interaction Panel (Agent Messages) -->
+          <div class="panel interaction-panel" id="interaction-panel">
+            <div class="panel-header">
+              <span class="panel-icon">💬</span> Agent Messages
+            </div>
+            <div class="message-list" id="message-list">
+              <div class="empty-hint">Messages will appear here after a run</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── Input + Graph Preview row ── -->
+        <div class="input-preview-row">
+          <div class="chat-panel">
+            <div class="chat-header">Input — chat-style</div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-row">
+              <label class="upload-btn">
+                Upload .txt / .docx
+                <input type="file" id="file-input" accept=".txt,.docx" hidden />
+              </label>
+              <textarea id="chat-input" placeholder="Paste text or multiple sentences…" rows="2"></textarea>
+              <button type="button" class="btn btn-primary" id="btn-send" style="width: auto">Send</button>
+            </div>
+          </div>
+          <div class="chat-panel" style="min-height: 340px">
+            <div class="chat-header">Live preview (vis.js)</div>
+            <div id="graph-network" style="height: 310px; background: #020617"></div>
+          </div>
+        </div>
+
+        <!-- ── Graph Growth Metrics ── -->
+        <div class="growth-card" id="growth-card">
+          <div class="panel-header">
+            <span class="panel-icon">📈</span> Graph Growth Metrics
+          </div>
+          <div class="growth-chart-area" id="growth-chart-area">
+            <canvas id="growth-canvas" width="800" height="200"></canvas>
+          </div>
+          <div class="growth-stats" id="growth-stats">
+            <span class="growth-stat"><strong>Total Runs:</strong> <span id="growth-total-runs">0</span></span>
+            <span class="growth-stat"><strong>Cumulative Nodes:</strong> <span id="growth-cum-nodes">0</span></span>
+            <span class="growth-stat"><strong>Cumulative Edges:</strong> <span id="growth-cum-edges">0</span></span>
+          </div>
+        </div>
+
+        <!-- ── Run History (Replay) ── -->
+        <div class="replay-card" id="replay-card">
+          <div class="panel-header">
+            <span class="panel-icon">🔁</span> Run History &amp; Replay
+          </div>
+          <div class="replay-list" id="replay-list">
+            <div class="empty-hint">No previous runs</div>
+          </div>
+        </div>
+
+        <!-- ── QA ── -->
+        <div class="qa-card">
+          <div class="qa-header">Ask a question</div>
+          <div class="qa-row">
+            <input
+              id="qa-input"
+              class="qa-input"
+              type="text"
+              placeholder='e.g. "Who founded SpaceX?"'
+            />
+            <button type="button" class="btn btn-ghost" id="qa-ask-btn" style="padding: 0.45rem 1rem">
+              Ask
+            </button>
+          </div>
+          <div id="qa-answer" class="qa-answer muted">Answer will appear here.</div>
+        </div>
+      </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+  </body>
+</html>
