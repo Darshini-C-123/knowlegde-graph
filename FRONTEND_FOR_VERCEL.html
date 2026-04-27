@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Builder - Vercel Deployment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .node {
+            stroke: #fff;
+            stroke-width: 2px;
+        }
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+            stroke-width: 2px;
+        }
+        .graph-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            height: 500px;
+            overflow: hidden;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand" href="#">Knowledge Graph Builder</a>
+                <span class="navbar-text ms-auto">Vercel Deployment</span>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Input Text</h5>
+                        </div>
+                        <div class="card-body">
+                            <textarea id="inputText" class="form-control" rows="8" placeholder="Enter text to process..."></textarea>
+                            <div class="mt-3">
+                                <button id="processBtn" class="btn btn-primary">Process Text</button>
+                                <button id="clearBtn" class="btn btn-secondary ms-2">Clear</button>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6>Seed Examples:</h6>
+                                <div class="btn-group-vertical" role="group">
+                                    <button class="btn btn-outline-primary btn-sm mb-1" onclick="loadSeed('tech_companies')">Tech Companies</button>
+                                    <button class="btn btn-outline-primary btn-sm mb-1" onclick="loadSeed('world_capitals')">World Capitals</button>
+                                    <button class="btn btn-outline-primary btn-sm mb-1" onclick="loadSeed('movie_industry')">Movie Industry</button>
+                                    <button class="btn btn-outline-primary btn-sm mb-1" onclick="loadSeed('legal_clause')">Legal Clause</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Question Answering</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group">
+                                <input type="text" id="questionInput" class="form-control" placeholder="Ask a question about the graph...">
+                                <button id="askBtn" class="btn btn-success">Ask</button>
+                            </div>
+                            <div id="answerDisplay" class="mt-3 alert alert-info" style="display: none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5>Knowledge Graph</h5>
+                            <div>
+                                <span id="statusBadge" class="badge bg-secondary">Ready</span>
+                                <span id="metricsBadge" class="badge bg-info ms-2">No data</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="graphContainer" class="graph-container">
+                                <div class="loading">
+                                    <p>Process some text to generate a knowledge graph</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Processing Log</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="logContainer" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                                <div class="text-muted">No processing logs yet...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_BASE = window.location.origin;
+        let currentGraph = null;
+        let currentUser = null;
+
+        // Seed texts
+        const SEED_TEXTS = {
+            tech_companies: "Elon Musk founded SpaceX in 2002 and Tesla in 2003. SpaceX is headquartered in Hawthorne, California. Tesla is located in Austin, Texas. Musk also acquired Twitter in 2022. Satya Nadella is the CEO of Microsoft, which is headquartered in Redmond, Washington. Microsoft acquired GitHub in 2018 and LinkedIn in 2016.",
+            world_capitals: "Paris is the capital of France. Berlin is the capital of Germany. Tokyo is the capital of Japan. London is the capital of the United Kingdom. Washington D.C. is the capital of the United States. New Delhi is the capital of India. Canberra is the capital of Australia.",
+            movie_industry: "Christopher Nolan directed Inception and The Dark Knight. Leonardo DiCaprio starred in Inception and Titanic. Titanic was directed by James Cameron. The Dark Knight featured Heath Ledger as the Joker. Cameron also directed Avatar. Steven Spielberg directed Jurassic Park and Schindler's List.",
+            legal_clause: "The Licensor grants the Licensee a non-exclusive, non-transferable license to use the Software. The agreement is governed by the laws of the State of Delaware. Any dispute arising from this contract shall be resolved through arbitration in New York City. The Licensee shall not reverse-engineer, decompile, or disassemble the Software. Confidential information shared between Company A and Company B remains protected for five years after termination."
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            login();
+        });
+
+        // Login function
+        async function login() {
+            try {
+                const response = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'demo',
+                        password: 'demo'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    currentUser = result.username;
+                    updateStatus('Logged in', 'success');
+                } else {
+                    updateStatus('Login failed', 'danger');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                updateStatus('Connection error', 'warning');
+            }
+        }
+
+        // Load seed text
+        function loadSeed(type) {
+            document.getElementById('inputText').value = SEED_TEXTS[type];
+        }
+
+        // Process text
+        async function processText() {
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                alert('Please enter some text to process');
+                return;
+            }
+
+            updateStatus('Processing...', 'info');
+            clearLog();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/process`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    currentGraph = result.graph;
+                    displayGraph(result.graph);
+                    updateMetrics(result.metrics);
+                    updateLog(result.logs);
+                    updateStatus('Processed successfully', 'success');
+                } else {
+                    updateStatus(`Error: ${result.error}`, 'danger');
+                    addLog(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Processing error:', error);
+                updateStatus('Processing failed', 'danger');
+                addLog(`Network error: ${error.message}`);
+            }
+        }
+
+        // Ask question
+        async function askQuestion() {
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            if (!currentGraph) {
+                alert('Please process some text first to create a knowledge graph');
+                return;
+            }
+
+            updateStatus('Thinking...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/qa`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    displayAnswer(result.answer);
+                    updateStatus('Answer ready', 'success');
+                } else {
+                    displayAnswer(`Error: ${result.error}`);
+                    updateStatus('Question failed', 'danger');
+                }
+            } catch (error) {
+                console.error('QA error:', error);
+                displayAnswer('Network error');
+                updateStatus('Question failed', 'danger');
+            }
+        }
+
+        // Display graph using D3.js
+        function displayGraph(graph) {
+            const container = document.getElementById('graphContainer');
+            container.innerHTML = '';
+
+            if (!graph.nodes || graph.nodes.length === 0) {
+                container.innerHTML = '<div class="loading"><p>No graph data to display</p></div>';
+                return;
+            }
+
+            const width = container.clientWidth;
+            const height = 500;
+
+            const svg = d3.select('#graphContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const simulation = d3.forceSimulation(graph.nodes)
+                .force('link', d3.forceLink(graph.edges).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(graph.edges)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('stroke-width', 2);
+
+            const node = svg.append('g')
+                .selectAll('circle')
+                .data(graph.nodes)
+                .enter().append('circle')
+                .attr('class', 'node')
+                .attr('r', 8)
+                .attr('fill', d => {
+                    const colors = {
+                        'Person': '#ff6b6b',
+                        'Organization': '#4ecdc4',
+                        'Location': '#45b7d1',
+                        'Event': '#96ceb4',
+                        'Other': '#ffeaa7'
+                    };
+                    return colors[d.type] || '#95a5a6';
+                })
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+
+            const label = svg.append('g')
+                .selectAll('text')
+                .data(graph.nodes)
+                .enter().append('text')
+                .text(d => d.name)
+                .attr('font-size', '10px')
+                .attr('dx', 12)
+                .attr('dy', 4);
+
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+
+                label
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+
+        // Display answer
+        function displayAnswer(answer) {
+            const answerDiv = document.getElementById('answerDisplay');
+            answerDiv.textContent = answer;
+            answerDiv.style.display = 'block';
+        }
+
+        // Update status
+        function updateStatus(message, type) {
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = message;
+            badge.className = `badge bg-${type === 'success' ? 'success' : type === 'danger' ? 'danger' : type === 'info' ? 'info' : 'secondary'}`;
+        }
+
+        // Update metrics
+        function updateMetrics(metrics) {
+            const badge = document.getElementById('metricsBadge');
+            if (metrics.node_count && metrics.edge_count) {
+                badge.textContent = `${metrics.node_count} nodes, ${metrics.edge_count} edges`;
+            }
+        }
+
+        // Update log
+        function updateLog(logs) {
+            const container = document.getElementById('logContainer');
+            if (logs && logs.length > 0) {
+                container.innerHTML = logs.map(log => `<div>${log}</div>`).join('');
+            }
+        }
+
+        function addLog(message) {
+            const container = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${new Date().toISOString()}] ${message}`;
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '<div class="text-muted">Processing started...</div>';
+        }
+
+        // Event listeners
+        document.getElementById('processBtn').addEventListener('click', processText);
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('inputText').value = '';
+            document.getElementById('answerDisplay').style.display = 'none';
+        });
+        document.getElementById('askBtn').addEventListener('click', askQuestion);
+        
+        // Enter key support
+        document.getElementById('questionInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                askQuestion();
+            }
+        });
+    </script>
+</body>
+</html>

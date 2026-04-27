@@ -23,7 +23,18 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 # Import our modules
 import sys
+import subprocess
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+# Download and load spaCy model for serverless
+try:
+    import spacy
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    # Download spaCy model if not available
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+    import spacy
+    nlp = spacy.load("en_core_web_sm")
 
 import pipeline
 import qa_engine
@@ -116,7 +127,30 @@ SEED_TEXTS = {
 @login_required
 def api_process():
     data = request.get_json(silent=True) or {}
+    
+    # Handle both direct text and file upload
     text = (data.get("text") or "").strip()
+    
+    # If file content is provided (base64 encoded for serverless)
+    if not text and data.get("file_content"):
+        import base64
+        try:
+            # Decode base64 content
+            file_data = base64.b64decode(data.get("file_content"))
+            
+            # Check if it's a docx file by magic number or extension
+            if data.get("filename", "").lower().endswith(".docx"):
+                # Process docx in memory
+                from io import BytesIO
+                from docx import Document
+                doc = Document(BytesIO(file_data))
+                text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+            else:
+                # Process as text file
+                text = file_data.decode("utf-8", errors="replace")
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"File processing error: {str(e)}"}), 400
+    
     if not text:
         return jsonify({"ok": False, "error": "No text provided."}), 400
 
